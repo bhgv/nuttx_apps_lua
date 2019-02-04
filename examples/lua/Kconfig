@@ -5,9 +5,9 @@
 
 config EXAMPLES_LUA
 	tristate "lua example"
-	default n
+	default y
 	---help---
-		Enable the lua example
+		Enable the Lua interpreter example
 
 if EXAMPLES_LUA
 endif
