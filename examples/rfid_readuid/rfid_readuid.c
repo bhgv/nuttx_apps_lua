@@ -39,6 +39,7 @@
 
 #include <nuttx/config.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -76,9 +77,17 @@ int rfid_readuid_main(int argc, char *argv[])
   int fd;
   int ret;
   int count = 0;
-  char buffer[10];
+  
+  int buf_len = 2+ 10*2 +1;
+  char* buffer = malloc(buf_len);
 
-  fd = open(CONFIG_EXAMPLES_RFID_READUID_DEVNAME, O_RDONLY);
+  char* cmd_rd_uid = "Ruid:";
+  char* cmd_rd_dmp = "Rdump:";
+
+  if(buffer == NULL)
+    return -ENOMEM;
+
+  fd = open(CONFIG_EXAMPLES_RFID_READUID_DEVNAME, O_RDWR);
   if (fd < 0)
     {
       printf("Failed to open %s\n", CONFIG_EXAMPLES_RFID_READUID_DEVNAME);
@@ -87,18 +96,55 @@ int rfid_readuid_main(int argc, char *argv[])
 
   /* Try to read a card up to 3 times */
 
-  while (count < 3)
+  while (count < 10)
     {
       printf("Trying to READ: ");
 
       /* 11 bytes = 0x12345678\0 */
 
-      ret = read(fd, buffer, 11);
-      if (ret == 11)
+      if(!write(fd, cmd_rd_uid, strlen(cmd_rd_uid))){
+        free(buffer);
+        close(fd);
+        return -EIO;
+        }
+
+      ret = read(fd, buffer, buf_len);
+      if (ret == buf_len)
         {
           printf("RFID CARD UID = %s\n", buffer);
-          break;
+          free(buffer);
+#if 0
+          buffer = malloc(1024);
+          if(buffer == NULL)
+            return -ENOMEM;
+          buf_len = 1024;
+          if(!write(fd, cmd_rd_dmp, strlen(cmd_rd_dmp))){
+            free(buffer);
+            close(fd);
+            return -EIO;
+            }
+          
+          ret = read(fd, buffer, buf_len);
+          if (ret == buf_len){
+            int i, j;
+            printf("RFID CARD DUMP:\n");
+            for(i = 0; i < 64; i++){
+              printf("\nblock %d:\n", i);
+              for(j = 0; j < 16; j++){
+                printf("%2X ", buffer[i*64 + j]);
+                }
+              }
+            }
+          free(buffer);
+#endif
+          close(fd);
+          return OK;
         }
+//        else{
+//          free(buffer);
+//          close(fd);
+//          return -EIO;
+//        }
 
       if (ret == -EAGAIN || ret == -EPERM)
         {
@@ -111,9 +157,12 @@ int rfid_readuid_main(int argc, char *argv[])
 
       /* Wait 500ms before trying again */
 
-      usleep(500000);
+      usleep(1000000);
       count++;
     }
 
+  free(buffer);
+  close(fd);
   return 0;
 }
+
