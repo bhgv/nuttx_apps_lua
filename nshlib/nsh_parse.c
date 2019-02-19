@@ -217,6 +217,7 @@ static const char g_arg_separator[]   = "`$";
 #endif
 static const char g_redirect1[]       = ">";
 static const char g_redirect2[]       = ">>";
+static const char g_redirect3[]       = "<>";
 #ifdef NSH_HAVE_VARS
 static const char g_exitstatus[]      = "?";
 static const char g_success[]         = "0";
@@ -1492,6 +1493,11 @@ static FAR char *nsh_argument(FAR struct nsh_vtbl_s *vtbl, FAR char **saveptr,
           argument = (FAR char *)g_redirect1;
         }
     }
+  else if (*pbegin == '<' && *(pbegin + 1) == '>')
+    {
+      *saveptr = pbegin + 2;
+      argument = (FAR char *)g_redirect3;
+    }
 
   /* Does the token begin with '#' -- comment */
 
@@ -2517,6 +2523,17 @@ static int nsh_parse_command(FAR struct nsh_vtbl_s *vtbl, FAR char *cmdline)
           redirect_save        = vtbl->np.np_redirect;
           vtbl->np.np_redirect = true;
           oflags               = O_WRONLY|O_CREAT|O_APPEND;
+          redirfile            = nsh_getfullpath(vtbl, argv[argc-1]);
+          argc                -= 2;
+        }
+
+      /* Check for redirection by read-write to an existing file */
+
+      else if (strcmp(argv[argc-2], g_redirect3) == 0)
+        {
+          redirect_save        = vtbl->np.np_redirect;
+          vtbl->np.np_redirect = true;
+          oflags               = O_RDWR|O_CREAT|O_APPEND;
           redirfile            = nsh_getfullpath(vtbl, argv[argc-1]);
           argc                -= 2;
         }

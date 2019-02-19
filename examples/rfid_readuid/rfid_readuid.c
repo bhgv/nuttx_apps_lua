@@ -78,11 +78,10 @@ int rfid_readuid_main(int argc, char *argv[])
   int ret;
   int count = 0;
   
-  int buf_len = 2+ 10*2 +1;
+  int buf_len = 10;
   char* buffer = malloc(buf_len);
 
   char* cmd_rd_uid = "Ruid:";
-  char* cmd_rd_dmp = "Rdump:";
 
   if(buffer == NULL)
     return -ENOMEM;
@@ -94,13 +93,13 @@ int rfid_readuid_main(int argc, char *argv[])
       return -1;
     }
 
-  /* Try to read a card up to 3 times */
+  /* Try to read a card up to 10 times */
 
   while (count < 10)
     {
       printf("Trying to READ: ");
 
-      /* 11 bytes = 0x12345678\0 */
+      /* UID has 10 bytes maxium */
 
       if(!write(fd, cmd_rd_uid, strlen(cmd_rd_uid))){
         free(buffer);
@@ -109,53 +108,32 @@ int rfid_readuid_main(int argc, char *argv[])
         }
 
       ret = read(fd, buffer, buf_len);
-      if (ret == buf_len)
+      if (ret > 0)
         {
-          printf("RFID CARD UID = %s\n", buffer);
+          printf("RFID CARD UID = 0x");
+          for(int i = 0; i < ret; i++)
+            printf("%2X", buffer[i]);
+          printf("\n");
+
           free(buffer);
-#if 0
-          buffer = malloc(1024);
-          if(buffer == NULL)
-            return -ENOMEM;
-          buf_len = 1024;
-          if(!write(fd, cmd_rd_dmp, strlen(cmd_rd_dmp))){
-            free(buffer);
-            close(fd);
-            return -EIO;
-            }
-          
-          ret = read(fd, buffer, buf_len);
-          if (ret == buf_len){
-            int i, j;
-            printf("RFID CARD DUMP:\n");
-            for(i = 0; i < 64; i++){
-              printf("\nblock %d:\n", i);
-              for(j = 0; j < 16; j++){
-                printf("%2X ", buffer[i*64 + j]);
-                }
-              }
-            }
-          free(buffer);
-#endif
           close(fd);
           return OK;
         }
-//        else{
-//          free(buffer);
-//          close(fd);
-//          return -EIO;
-//        }
 
-      if (ret == -EAGAIN || ret == -EPERM)
+      if (ret == 0)
+        {
+        printf("None UID is returned\n");
+        }
+      else if (ret == -EAGAIN || ret == -EPERM)
         {
           printf("Card is not present!\n");
         }
       else
         {
-          printf("Unknown error!\n");
+          printf("Unknown error!(%d)\n", ret);
         }
 
-      /* Wait 500ms before trying again */
+      /* Wait 1s before trying again */
 
       usleep(1000000);
       count++;

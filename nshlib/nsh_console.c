@@ -146,15 +146,47 @@ static void nsh_closeifnotclosed(struct console_stdio_s *pstate)
     }
   else
     {
+      char* tbuf = malloc(16+1);
+
       if (pstate->cn_outstream)
         {
           fflush(pstate->cn_outstream);
+//----VVV----
+          while(1){
+            int ret = read(pstate->cn_outstream->fs_fd, tbuf, 16);
+            if(ret <= 0)
+              break;
+
+            for(int i=0; i<ret; i++){
+              printf("%2X ", tbuf[i]);
+            }
+            printf("\n");
+          }
+//----AAA----
           fclose(pstate->cn_outstream);
         }
       else if (pstate->cn_outfd >= 0 && pstate->cn_outfd != OUTFD(pstate))
         {
+#if 0
+          printf("\n%s:%d =2=\n", __func__, __LINE__);
+          int ret = read(pstate->cn_outstream->fs_fd, tbuf, 1024);
+          //int ret = fread(tbuf, 1, 1024, pstate->cn_outstream);
+          if (ret < 0)
+            {
+              _err("ERROR: [%d] Failed to send buffer: %d\n",
+                  pstate->cn_outfd, errno);
+            }
+          for(int i=0; i<ret; i++){
+            if(i % 16 == 0)
+              printf("\n%d) ", i/16);
+            printf("%2X ", tbuf[i]);
+            }
+          printf("\n%s:%d =2=\n", __func__, __LINE__);
+#endif
           close(pstate->cn_outfd);
         }
+
+      free(tbuf);
 
       pstate->cn_errfd     = -1;
       pstate->cn_outfd     = -1;
